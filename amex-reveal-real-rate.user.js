@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         Amex Reveal Real Rate
-// @namespace    https://github.com/amex-reveal
-// @version      1.0
+// @namespace    https://github.com/justinwlin/AmexRevealAsHighAs
+// @version      1.2
 // @description  Strips "elevatedOffer" variant from Amex Rates & Fees links to reveal the real offer terms instead of the inflated "As High As" marketing language.
-// @author       You
-// @match        https://www.americanexpress.com/us/credit-cards/*
+// @author       justinwlin
+// @match        *://www.americanexpress.com/*credit-cards*
+// @match        *://www.americanexpress.com/us/credit-cards/*
+// @match        *://www.americanexpress.com/en-us/credit-cards/*
 // @grant        GM_addStyle
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/justinwlin/AmexRevealAsHighAs/main/amex-reveal-real-rate.user.js
@@ -14,315 +16,226 @@
 (function () {
   'use strict';
 
+  console.log('[Amex Reveal] Script loaded on:', window.location.href);
+
   // ── Styles ──────────────────────────────────────────────────────────
   GM_addStyle(`
+    /* ── Floating Button ─────────────────────────────────────────── */
     #amex-reveal-btn {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 999999;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #006fcf 0%, #0050a0 100%);
-      color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 4px 14px rgba(0, 80, 160, 0.4);
-      transition: all 0.2s ease;
+      position: fixed !important;
+      bottom: 24px !important;
+      right: 24px !important;
+      z-index: 2147483647 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      padding: 14px 22px !important;
+      background: linear-gradient(135deg, #c8102e 0%, #9b0020 100%) !important;
+      color: #fff !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif !important;
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      border: none !important;
+      border-radius: 50px !important;
+      cursor: pointer !important;
+      box-shadow: 0 4px 16px rgba(200, 16, 46, 0.5) !important;
+      transition: all 0.2s ease !important;
+      text-decoration: none !important;
+      line-height: 1.2 !important;
+      letter-spacing: 0.3px !important;
     }
     #amex-reveal-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 80, 160, 0.55);
-      background: linear-gradient(135deg, #0080e6 0%, #005cbf 100%);
+      transform: translateY(-2px) !important;
+      box-shadow: 0 6px 24px rgba(200, 16, 46, 0.65) !important;
+      background: linear-gradient(135deg, #e0132f 0%, #b50025 100%) !important;
     }
     #amex-reveal-btn:active {
-      transform: translateY(0);
+      transform: translateY(0) !important;
     }
     #amex-reveal-btn .icon {
-      font-size: 18px;
+      font-size: 18px !important;
     }
 
-    /* ── Modal ─────────────────────────────────────────────────────── */
-    #amex-reveal-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 9999999;
-      background: rgba(0, 0, 0, 0.55);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.25s ease;
+    /* ── Toast notification ──────────────────────────────────────── */
+    #amex-reveal-toast {
+      position: fixed !important;
+      bottom: 80px !important;
+      right: 24px !important;
+      z-index: 2147483647 !important;
+      background: #1a1a1a !important;
+      color: #fff !important;
+      padding: 12px 20px !important;
+      border-radius: 10px !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+      opacity: 0 !important;
+      transform: translateY(10px) !important;
+      transition: all 0.3s ease !important;
+      pointer-events: none !important;
+      max-width: 340px !important;
     }
-    #amex-reveal-overlay.visible {
-      opacity: 1;
+    #amex-reveal-toast.show {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
     }
-    #amex-reveal-modal {
-      background: #fff;
-      border-radius: 16px;
-      width: 90vw;
-      max-width: 960px;
-      height: 80vh;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 24px 80px rgba(0,0,0,0.3);
-      overflow: hidden;
-      transform: translateY(30px);
-      transition: transform 0.25s ease;
-    }
-    #amex-reveal-overlay.visible #amex-reveal-modal {
-      transform: translateY(0);
-    }
-    #amex-reveal-modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 24px;
-      border-bottom: 1px solid #e5e5e5;
-      background: #f7f8fa;
-    }
-    #amex-reveal-modal-header h2 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 700;
-      color: #1a1a1a;
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-    }
-    #amex-reveal-modal-header .subtitle {
-      font-size: 12px;
-      color: #888;
-      font-weight: 400;
-    }
-    #amex-reveal-close-btn {
-      background: none;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      width: 36px;
-      height: 36px;
-      font-size: 20px;
-      cursor: pointer;
-      color: #666;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.15s;
-    }
-    #amex-reveal-close-btn:hover {
-      background: #f0f0f0;
-      color: #333;
-    }
-    #amex-reveal-iframe {
-      flex: 1;
-      border: none;
-      width: 100%;
-    }
-    #amex-reveal-loading {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-      color: #888;
-      font-size: 14px;
+
+    /* ── Badge on rewritten links ────────────────────────────────── */
+    .amex-reveal-cleaned {
+      position: relative !important;
     }
     .amex-reveal-badge {
-      display: inline-block;
-      background: #e74c3c;
-      color: #fff;
-      font-size: 9px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-left: 6px;
-      vertical-align: middle;
-      letter-spacing: 0.5px;
-    }
-
-    /* ── Link rewrite indicator ─────────────────────────────────── */
-    .amex-reveal-cleaned::after {
-      content: " ✓ real rates";
-      font-size: 10px;
-      color: #27ae60;
-      font-weight: 600;
-      margin-left: 4px;
+      display: inline-block !important;
+      background: #27ae60 !important;
+      color: #fff !important;
+      font-size: 9px !important;
+      font-weight: 700 !important;
+      padding: 2px 5px !important;
+      border-radius: 3px !important;
+      margin-left: 4px !important;
+      vertical-align: middle !important;
+      letter-spacing: 0.4px !important;
+      text-transform: uppercase !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif !important;
     }
   `);
 
   // ── Helpers ─────────────────────────────────────────────────────────
-  /**
-   * Given a Rates & Fees URL, strip the oneXpVariant param so the
-   * real (non-elevated) offer terms load.
-   */
+
   function cleanUrl(href) {
     try {
       const url = new URL(href);
       url.searchParams.delete('oneXpVariant');
-      // Also clean up any trailing empty params
-      let cleaned = url.toString();
-      // Remove any && artifacts
-      cleaned = cleaned.replace(/&&+/g, '&').replace(/\?&/, '?').replace(/&$/, '');
-      return cleaned;
+      return url.toString();
     } catch {
-      // Fallback: regex strip
-      return href
-        .replace(/[?&]oneXpVariant=[^&]*/gi, '')
-        .replace(/\?&/, '?')
-        .replace(/&&+/g, '&')
-        .replace(/&$/, '');
+      return href.replace(/[?&]oneXpVariant=[^&]*/gi, '');
     }
   }
 
-  /**
-   * Find all Rates & Fees links on the page that have the
-   * oneXpVariant parameter.
-   */
-  function findElevatedLinks() {
-    const allLinks = document.querySelectorAll('a[href*="oneXpVariant"]');
-    return Array.from(allLinks);
+  function showToast(message, duration = 3000) {
+    let toast = document.getElementById('amex-reveal-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'amex-reveal-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.classList.remove('show'), duration);
   }
 
-  // ── Rewrite links in-page ──────────────────────────────────────────
-  function rewriteLinks() {
-    const links = findElevatedLinks();
+  // ── Find and rewrite elevated links ────────────────────────────────
+
+  function findAndRewriteLinks() {
+    const links = document.querySelectorAll('a[href*="oneXpVariant"]');
+    let count = 0;
+
     links.forEach((a) => {
-      const cleaned = cleanUrl(a.href);
+      if (a.classList.contains('amex-reveal-cleaned')) return;
+
+      const original = a.href;
+      const cleaned = cleanUrl(original);
       a.setAttribute('href', cleaned);
       a.classList.add('amex-reveal-cleaned');
+
+      // Add a small badge next to the link text
+      if (!a.querySelector('.amex-reveal-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'amex-reveal-badge';
+        badge.textContent = '✓ REAL';
+        a.appendChild(badge);
+      }
+
+      count++;
+      console.log('[Amex Reveal] Cleaned link:', original, '→', cleaned);
     });
-    return links.length;
+
+    return count;
   }
 
-  // ── Build the real-rates URL from the page context ─────────────────
+  // ── Get the clean rates URL ────────────────────────────────────────
+
   function getRealRatesUrl() {
-    // First look for existing Rates & Fees links (already cleaned or not)
-    const ratesLink = document.querySelector(
-      'a[href*="/prospect/terms/"], a[href*="/card-application/apply/prospect/terms/"]'
-    );
-    if (ratesLink) {
-      return cleanUrl(ratesLink.href);
+    // Look for Rates & Fees links (already cleaned or original)
+    const selectors = [
+      'a[href*="/prospect/terms/"]',
+      'a[href*="key=tncBody"]',
+      'a[aria-label*="Rates"]',
+      'a[aria-label*="rates"]',
+    ];
+
+    for (const sel of selectors) {
+      const link = document.querySelector(sel);
+      if (link) {
+        return cleanUrl(link.href);
+      }
     }
     return null;
   }
 
-  // ── Modal ──────────────────────────────────────────────────────────
-  function openModal(url) {
-    // Remove existing modal if any
-    const existing = document.getElementById('amex-reveal-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'amex-reveal-overlay';
-
-    overlay.innerHTML = `
-      <div id="amex-reveal-modal">
-        <div id="amex-reveal-modal-header">
-          <div>
-            <h2>🔍 Real Rates &amp; Fees <span class="amex-reveal-badge">NO ELEVATED OFFER</span></h2>
-            <span class="subtitle">${url}</span>
-          </div>
-          <button id="amex-reveal-close-btn" title="Close">✕</button>
-        </div>
-        <div id="amex-reveal-loading">Loading real rates…</div>
-        <iframe id="amex-reveal-iframe" style="display:none;"></iframe>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    // Animate in
-    requestAnimationFrame(() => overlay.classList.add('visible'));
-
-    // Close handlers
-    const close = () => {
-      overlay.classList.remove('visible');
-      setTimeout(() => overlay.remove(), 250);
-    };
-    document.getElementById('amex-reveal-close-btn').addEventListener('click', close);
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close();
-    });
-    document.addEventListener('keydown', function escHandler(e) {
-      if (e.key === 'Escape') {
-        close();
-        document.removeEventListener('keydown', escHandler);
-      }
-    });
-
-    // Load iframe
-    const iframe = document.getElementById('amex-reveal-iframe');
-    const loading = document.getElementById('amex-reveal-loading');
-
-    iframe.addEventListener('load', () => {
-      loading.style.display = 'none';
-      iframe.style.display = 'block';
-    });
-
-    // If iframe fails (CORS/X-Frame-Options), fall back to opening in new tab
-    iframe.addEventListener('error', () => {
-      window.open(url, '_blank');
-      close();
-    });
-
-    iframe.src = url;
-
-    // Safety timeout — if iframe doesn't load in 4s, open in new tab
-    setTimeout(() => {
-      if (loading.style.display !== 'none') {
-        // The terms page may block iframes — open directly
-        window.open(url, '_blank');
-        close();
-      }
-    }, 4000);
-  }
-
   // ── Floating Button ────────────────────────────────────────────────
+
   function addButton() {
     if (document.getElementById('amex-reveal-btn')) return;
 
     const btn = document.createElement('button');
     btn.id = 'amex-reveal-btn';
-    btn.innerHTML = '<span class="icon">🔍</span> View Real Rates';
-    btn.title = 'Open Rates & Fees without the elevated offer variant';
+    btn.innerHTML = '<span class="icon">🔍</span> View Real Rates & Fees';
+    btn.title = 'Open the real Rates & Fees without the inflated "As High As" elevated offer terms';
 
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
       const url = getRealRatesUrl();
       if (url) {
-        openModal(url);
+        showToast('Opening real rates (without elevated offer)…');
+        window.open(url, '_blank');
       } else {
-        // No link found — try to open in new tab with a generic message
-        alert(
-          'Could not find a Rates & Fees link on this page.\n' +
-          'Try scrolling down to the Rates & Fees section first.'
-        );
+        showToast('⚠️ No Rates & Fees link found on this page. Try scrolling down first.', 4000);
       }
     });
 
     document.body.appendChild(btn);
+    console.log('[Amex Reveal] Button injected');
   }
 
   // ── Init ────────────────────────────────────────────────────────────
+
   function init() {
-    const count = rewriteLinks();
+    const count = findAndRewriteLinks();
     addButton();
-    console.log(
-      `[Amex Reveal] Cleaned ${count} elevated-offer link(s). Button injected.`
-    );
+
+    if (count > 0) {
+      showToast(`✅ Fixed ${count} link${count > 1 ? 's' : ''} — now showing real rates`, 4000);
+    }
+
+    console.log(`[Amex Reveal] Init complete. Cleaned ${count} link(s). Button added.`);
   }
 
-  // Run now, and also observe for dynamically added links (SPA behavior)
+  // Run now
   init();
 
+  // Also watch for dynamically added links (Amex pages are heavy SPAs)
   const observer = new MutationObserver(() => {
-    const links = findElevatedLinks();
-    if (links.length > 0) {
-      rewriteLinks();
+    const uncleaned = document.querySelectorAll('a[href*="oneXpVariant"]:not(.amex-reveal-cleaned)');
+    if (uncleaned.length > 0) {
+      const count = findAndRewriteLinks();
+      if (count > 0) {
+        showToast(`✅ Fixed ${count} more link${count > 1 ? 's' : ''}`, 2500);
+      }
+    }
+    // Re-add button if Amex's SPA nuked it
+    if (!document.getElementById('amex-reveal-btn')) {
+      addButton();
     }
   });
+
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Extra safety: re-run after a delay in case content loads late
+  setTimeout(init, 2000);
+  setTimeout(init, 5000);
 })();
