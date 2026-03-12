@@ -19,13 +19,13 @@ But if you remove that parameter, you see the **actual offer**:
 ## What This Script Does
 
 1. **Auto-rewrites all Rates & Fees links** on Amex card pages — strips the `oneXpVariant` parameter so they point to real terms
-2. **Adds a floating "🔍 View Real Rates" button** — click it to instantly view the real offer terms in a modal
+2. **Adds a floating "🔍 View Real Rates & Fees" button** — click it to open the real terms in a new tab
 3. **SPA-aware** — watches for dynamically injected links and cleans them in real time
 
 ## Install
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) in your browser
-2. [Click here to install the script](../../raw/main/amex-reveal-real-rate.user.js) (or create a new script in Tampermonkey and paste the contents)
+2. [Click here to install the script](https://raw.githubusercontent.com/justinwlin/AmexRevealAsHighAs/main/amex-reveal-real-rate.user.js) — Tampermonkey will prompt you to install it
 3. Visit any Amex credit card page — the button appears in the bottom-right corner
 
 ## License
