@@ -7,6 +7,8 @@
 // @match        https://www.americanexpress.com/us/credit-cards/*
 // @grant        GM_addStyle
 // @run-at       document-idle
+// @updateURL    https://raw.githubusercontent.com/justinwlin/AmexRevealAsHighAs/main/amex-reveal-real-rate.user.js
+// @downloadURL  https://raw.githubusercontent.com/justinwlin/AmexRevealAsHighAs/main/amex-reveal-real-rate.user.js
 // ==/UserScript==
 
 (function () {
